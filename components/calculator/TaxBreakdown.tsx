@@ -69,8 +69,8 @@ export function TaxBreakdown({ breakdown, withoutResult, withResult, regime }: T
         {breakdown.healthWellness > 0 && (
           <Row label="Health & Wellness" value={breakdown.healthWellness} type="deduction" />
         )}
-        {breakdown.transportAllowance > 0 && (
-          <Row label="Transport Allowance" value={breakdown.transportAllowance} type="deduction" />
+        {breakdown.driverSalary > 0 && (
+          <Row label="Driver Salary" value={breakdown.driverSalary} type="deduction" />
         )}
         {breakdown.booksAndPeriodicals > 0 && (
           <Row label="Books & Periodicals" value={breakdown.booksAndPeriodicals} type="deduction" />
@@ -81,7 +81,7 @@ export function TaxBreakdown({ breakdown, withoutResult, withResult, regime }: T
 
         {regime === "new" && (
           <p className="text-xs text-amber-600 mt-3 p-2 bg-amber-50 rounded-lg">
-            New Regime: Transport allowance and books &amp; periodicals are not exempt. All other Pluxee benefits apply.
+            New Regime: Books &amp; periodicals are not exempt. All other Pluxee benefits apply.
           </p>
         )}
       </div>

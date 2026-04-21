@@ -18,7 +18,7 @@ export function TaxCalculator() {
 
   const [benefits, setBenefits] = useState<PluxeeBenefits>({
     mealVouchers: 120000,
-    transportAllowance: 19200,
+    driverSalary: 0,
     telecom: 60000,
     fuel: 0,
     booksAndPeriodicals: 0,
@@ -32,7 +32,7 @@ export function TaxCalculator() {
 
   const regimeComparison = useMemo(() => {
     const empty: PluxeeBenefits = {
-      mealVouchers: 0, transportAllowance: 0, telecom: 0,
+      mealVouchers: 0, driverSalary: 0, telecom: 0,
       fuel: 0, booksAndPeriodicals: 0, healthWellness: 0,
     };
     return {
@@ -254,22 +254,20 @@ export function TaxCalculator() {
                   color="blue"
                 />
 
+                <BenefitSlider
+                  label="Driver Salary"
+                  sublabel="Up to ₹25,000/mo — Directors & above only"
+                  value={benefits.driverSalary}
+                  max={300000}
+                  step={1000}
+                  onChange={(v) => setBenefit("driverSalary", v)}
+                  color="blue"
+                />
+
                 <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide pt-2">
                   Allowed under Old Regime only
                 </p>
 
-                <BenefitSlider
-                  label="Transport Allowance"
-                  sublabel="Up to ₹1,600/mo"
-                  value={benefits.transportAllowance}
-                  max={19200}
-                  step={200}
-                  onChange={(v) => setBenefit("transportAllowance", v)}
-                  disabled={regime === "new"}
-                  disabledReason="Not exempt under New Regime"
-                  color="green"
-                />
-                <Separator />
                 <BenefitSlider
                   label="Books &amp; Periodicals"
                   sublabel="Up to ₹5,000/mo"

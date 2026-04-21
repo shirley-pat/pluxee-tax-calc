@@ -4,12 +4,12 @@ export type AgeGroup = "under60" | "60to79" | "80plus";
 export type Regime = "old" | "new";
 
 export interface PluxeeBenefits {
-  mealVouchers: number;         // max 120000/yr — both regimes
-  transportAllowance: number;   // max 19200/yr  — old regime only
-  telecom: number;              // max 60000/yr  — both regimes
-  fuel: number;                 // max 180000/yr — both regimes
-  booksAndPeriodicals: number;  // max 60000/yr  — old regime only
-  healthWellness: number;       // max 60000/yr  — both regimes
+  mealVouchers: number;         // max 120000/yr  — both regimes
+  driverSalary: number;         // max 300000/yr  — both regimes (Directors & above only)
+  telecom: number;              // max 60000/yr   — both regimes
+  fuel: number;                 // max 180000/yr  — both regimes
+  booksAndPeriodicals: number;  // max 60000/yr   — old regime only
+  healthWellness: number;       // max 60000/yr   — both regimes
 }
 
 export interface TaxInput {
@@ -42,7 +42,7 @@ export interface BenefitBreakdown {
   grossSalary: number;
   standardDeduction: number;
   mealVouchers: number;
-  transportAllowance: number;
+  driverSalary: number;
   telecom: number;
   fuel: number;
   booksAndPeriodicals: number;
@@ -138,13 +138,13 @@ export function calculateTax(input: TaxInput): CalculationOutput {
   // Benefits allowed in both regimes
   const bothRegimes =
     Math.min(benefits.mealVouchers, 120000) +
+    Math.min(benefits.driverSalary, 300000) +
     Math.min(benefits.telecom, 60000) +
     Math.min(benefits.fuel, 180000) +
     Math.min(benefits.healthWellness, 60000);
 
   // Benefits allowed in old regime only
   const oldOnly =
-    Math.min(benefits.transportAllowance, 19200) +
     Math.min(benefits.booksAndPeriodicals, 60000);
 
   const pluxeeDeduction = regime === "old"
@@ -160,7 +160,7 @@ export function calculateTax(input: TaxInput): CalculationOutput {
     grossSalary,
     standardDeduction: stdDeduction,
     mealVouchers:        Math.min(benefits.mealVouchers, 120000),
-    transportAllowance:  regime === "old" ? Math.min(benefits.transportAllowance, 19200) : 0,
+    driverSalary:        Math.min(benefits.driverSalary, 300000),
     telecom:             Math.min(benefits.telecom, 60000),
     fuel:                Math.min(benefits.fuel, 180000),
     booksAndPeriodicals: regime === "old" ? Math.min(benefits.booksAndPeriodicals, 60000) : 0,

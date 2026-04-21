@@ -4,19 +4,12 @@ export type AgeGroup = "under60" | "60to79" | "80plus";
 export type Regime = "old" | "new";
 
 export interface PluxeeBenefits {
-  mealVouchers: number;         // max 26400/yr  — old regime only
+  mealVouchers: number;         // max 120000/yr — both regimes
   transportAllowance: number;   // max 19200/yr  — old regime only
-  lta: number;                  // user-defined  — old regime only
   telecom: number;              // max 60000/yr  — both regimes
   fuel: number;                 // max 180000/yr — both regimes
   booksAndPeriodicals: number;  // max 60000/yr  — old regime only
   healthWellness: number;       // max 60000/yr  — both regimes
-  npsEmployer: number;          // max 10% of basic — both regimes (80CCD2)
-}
-
-export interface OldRegimeDeductions {
-  section80C: number;           // max 150000
-  healthInsurance80D: number;   // max 25000 (50000 for seniors)
 }
 
 export interface TaxInput {
@@ -24,7 +17,6 @@ export interface TaxInput {
   ageGroup: AgeGroup;
   regime: Regime;
   benefits: PluxeeBenefits;
-  oldRegimeDeductions: OldRegimeDeductions;
 }
 
 export interface TaxResult {
@@ -51,14 +43,10 @@ export interface BenefitBreakdown {
   standardDeduction: number;
   mealVouchers: number;
   transportAllowance: number;
-  lta: number;
   telecom: number;
   fuel: number;
   booksAndPeriodicals: number;
   healthWellness: number;
-  npsEmployer: number;
-  section80C: number;
-  healthInsurance80D: number;
   totalDeductions: number;
   taxableIncome: number;
 }
@@ -111,7 +99,8 @@ function computeTax(
   if (taxableIncome <= 0) {
     return {
       taxableIncome: 0, taxBeforeCess: 0, surcharge: 0,
-      cess: 0, totalTax: 0, effectiveRate: 0, takeHome: grossForSurcharge, rebateApplied: false,
+      cess: 0, totalTax: 0, effectiveRate: 0,
+      takeHome: grossForSurcharge, rebateApplied: false,
     };
   }
 
@@ -138,75 +127,44 @@ function computeTax(
 }
 
 export function calculateTax(input: TaxInput): CalculationOutput {
-  const { grossSalary, ageGroup, regime, benefits, oldRegimeDeductions } = input;
+  const { grossSalary, ageGroup, regime, benefits } = input;
 
   const stdDeduction = regime === "new" ? 75000 : 50000;
-  const maxHealthInsurance = ageGroup !== "under60" ? 50000 : 25000;
 
-  // --- Without benefits ---
-  let taxableWithout: number;
-  if (regime === "old") {
-    taxableWithout = Math.max(
-      grossSalary
-        - stdDeduction
-        - Math.min(oldRegimeDeductions.section80C, 150000)
-        - Math.min(oldRegimeDeductions.healthInsurance80D, maxHealthInsurance),
-      0
-    );
-  } else {
-    taxableWithout = Math.max(grossSalary - stdDeduction, 0);
-  }
-
+  // Without benefits
+  const taxableWithout = Math.max(grossSalary - stdDeduction, 0);
   const withoutBenefits = computeTax(taxableWithout, ageGroup, regime, grossSalary);
 
-  // --- Benefits applicable per regime ---
-  const b = benefits;
-
-  // Both regimes
+  // Benefits allowed in both regimes
   const bothRegimes =
-    Math.min(b.telecom, 60000) +
-    Math.min(b.fuel, 180000) +
-    Math.min(b.healthWellness, 60000) +
-    b.npsEmployer;
+    Math.min(benefits.mealVouchers, 120000) +
+    Math.min(benefits.telecom, 60000) +
+    Math.min(benefits.fuel, 180000) +
+    Math.min(benefits.healthWellness, 60000);
 
-  // Old regime only
+  // Benefits allowed in old regime only
   const oldOnly =
-    Math.min(b.mealVouchers, 26400) +
-    Math.min(b.transportAllowance, 19200) +
-    b.lta +
-    Math.min(b.booksAndPeriodicals, 60000);
+    Math.min(benefits.transportAllowance, 19200) +
+    Math.min(benefits.booksAndPeriodicals, 60000);
 
-  let taxableWith: number;
-  if (regime === "old") {
-    taxableWith = Math.max(
-      grossSalary
-        - stdDeduction
-        - bothRegimes
-        - oldOnly
-        - Math.min(oldRegimeDeductions.section80C, 150000)
-        - Math.min(oldRegimeDeductions.healthInsurance80D, maxHealthInsurance),
-      0
-    );
-  } else {
-    taxableWith = Math.max(grossSalary - stdDeduction - bothRegimes, 0);
-  }
+  const pluxeeDeduction = regime === "old"
+    ? bothRegimes + oldOnly
+    : bothRegimes;
 
+  const taxableWith = Math.max(grossSalary - stdDeduction - pluxeeDeduction, 0);
   const withBenefits = computeTax(taxableWith, ageGroup, regime, grossSalary);
+
   const annualSaving = Math.max(withoutBenefits.totalTax - withBenefits.totalTax, 0);
 
   const benefitBreakdown: BenefitBreakdown = {
     grossSalary,
     standardDeduction: stdDeduction,
-    mealVouchers:        regime === "old" ? Math.min(b.mealVouchers, 26400) : 0,
-    transportAllowance:  regime === "old" ? Math.min(b.transportAllowance, 19200) : 0,
-    lta:                 regime === "old" ? b.lta : 0,
-    telecom:             Math.min(b.telecom, 60000),
-    fuel:                Math.min(b.fuel, 180000),
-    booksAndPeriodicals: regime === "old" ? Math.min(b.booksAndPeriodicals, 60000) : 0,
-    healthWellness:      Math.min(b.healthWellness, 60000),
-    npsEmployer:         b.npsEmployer,
-    section80C:          regime === "old" ? Math.min(oldRegimeDeductions.section80C, 150000) : 0,
-    healthInsurance80D:  regime === "old" ? Math.min(oldRegimeDeductions.healthInsurance80D, maxHealthInsurance) : 0,
+    mealVouchers:        Math.min(benefits.mealVouchers, 120000),
+    transportAllowance:  regime === "old" ? Math.min(benefits.transportAllowance, 19200) : 0,
+    telecom:             Math.min(benefits.telecom, 60000),
+    fuel:                Math.min(benefits.fuel, 180000),
+    booksAndPeriodicals: regime === "old" ? Math.min(benefits.booksAndPeriodicals, 60000) : 0,
+    healthWellness:      Math.min(benefits.healthWellness, 60000),
     totalDeductions:     grossSalary - taxableWith,
     taxableIncome:       taxableWith,
   };

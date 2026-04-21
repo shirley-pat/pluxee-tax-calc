@@ -8,15 +8,7 @@ import { BenefitSlider } from "./BenefitSlider";
 import { ResultCard } from "./ResultCard";
 import { TaxBreakdown } from "./TaxBreakdown";
 import { formatINR, parseINR } from "@/lib/formatters";
-import {
-  calculateTax,
-  AgeGroup,
-  Regime,
-  PluxeeBenefits,
-  OldRegimeDeductions,
-} from "@/lib/taxEngine";
-
-const BASIC_RATIO = 0.5;
+import { calculateTax, AgeGroup, Regime, PluxeeBenefits } from "@/lib/taxEngine";
 
 export function TaxCalculator() {
   const [grossSalary, setGrossSalary] = useState(1200000);
@@ -25,54 +17,31 @@ export function TaxCalculator() {
   const [regime, setRegime] = useState<Regime>("new");
 
   const [benefits, setBenefits] = useState<PluxeeBenefits>({
-    mealVouchers: 26400,
+    mealVouchers: 120000,
     transportAllowance: 19200,
-    lta: 0,
     telecom: 60000,
     fuel: 0,
     booksAndPeriodicals: 0,
     healthWellness: 0,
-    npsEmployer: 0,
   });
-
-  const [oldDeductions, setOldDeductions] = useState<OldRegimeDeductions>({
-    section80C: 150000,
-    healthInsurance80D: 25000,
-  });
-
-  const npsMax = Math.round(grossSalary * BASIC_RATIO * 0.1);
 
   const result = useMemo(
-    () =>
-      calculateTax({
-        grossSalary,
-        ageGroup,
-        regime,
-        benefits: {
-          ...benefits,
-          npsEmployer: Math.min(benefits.npsEmployer, npsMax),
-        },
-        oldRegimeDeductions: oldDeductions,
-      }),
-    [grossSalary, ageGroup, regime, benefits, oldDeductions, npsMax]
+    () => calculateTax({ grossSalary, ageGroup, regime, benefits }),
+    [grossSalary, ageGroup, regime, benefits]
   );
 
   const regimeComparison = useMemo(() => {
     const empty: PluxeeBenefits = {
-      mealVouchers: 0, transportAllowance: 0, lta: 0,
-      telecom: 0, fuel: 0, booksAndPeriodicals: 0,
-      healthWellness: 0, npsEmployer: 0,
+      mealVouchers: 0, transportAllowance: 0, telecom: 0,
+      fuel: 0, booksAndPeriodicals: 0, healthWellness: 0,
     };
-    const oldResult = calculateTax({ grossSalary, ageGroup, regime: "old", benefits: empty, oldRegimeDeductions: oldDeductions });
-    const newResult = calculateTax({ grossSalary, ageGroup, regime: "new", benefits: empty, oldRegimeDeductions: oldDeductions });
-    return { oldResult, newResult };
-  }, [grossSalary, ageGroup, oldDeductions]);
+    return {
+      oldTax: calculateTax({ grossSalary, ageGroup, regime: "old", benefits: empty }).withoutBenefits.totalTax,
+      newTax: calculateTax({ grossSalary, ageGroup, regime: "new", benefits: empty }).withoutBenefits.totalTax,
+    };
+  }, [grossSalary, ageGroup]);
 
-  const recommendedRegime: Regime =
-    regimeComparison.oldResult.withoutBenefits.totalTax <=
-    regimeComparison.newResult.withoutBenefits.totalTax
-      ? "old"
-      : "new";
+  const recommendedRegime: Regime = regimeComparison.oldTax <= regimeComparison.newTax ? "old" : "new";
 
   const handleSalaryBlur = useCallback(() => {
     const val = parseINR(salaryInput);
@@ -81,13 +50,8 @@ export function TaxCalculator() {
     setSalaryInput(clamped === 0 ? "" : clamped.toLocaleString("en-IN"));
   }, [salaryInput]);
 
-  const setBenefit = (key: keyof PluxeeBenefits, value: number) => {
+  const setBenefit = (key: keyof PluxeeBenefits, value: number) =>
     setBenefits((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const setOldDeduction = (key: keyof OldRegimeDeductions, value: number) => {
-    setOldDeductions((prev) => ({ ...prev, [key]: value }));
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -99,12 +63,9 @@ export function TaxCalculator() {
             <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
             India FY 2024–25
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-            Income Tax Calculator
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Income Tax Calculator</h1>
           <p className="text-gray-500 text-sm max-w-xl mx-auto">
-            Calculate your tax liability and discover how Pluxee employee benefits
-            can reduce your taxable income under both regimes.
+            Calculate your tax liability and discover how Pluxee employee benefits can reduce your taxable income.
           </p>
         </div>
 
@@ -112,7 +73,6 @@ export function TaxCalculator() {
 
           {/* LEFT PANEL */}
           <div className="lg:col-span-1 space-y-5">
-
             <Card className="shadow-sm border-gray-200">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Your Profile</CardTitle>
@@ -171,7 +131,7 @@ export function TaxCalculator() {
                       <Badge className="text-xs bg-emerald-100 text-emerald-700 border-0 font-medium">Optimal</Badge>
                     ) : (
                       <span className="text-xs text-amber-600 font-medium">
-                        {recommendedRegime === "new" ? "New" : "Old"} may save more
+                        {recommendedRegime === "new" ? "New" : "Old"} regime saves more
                       </span>
                     )}
                   </div>
@@ -194,49 +154,21 @@ export function TaxCalculator() {
                       </button>
                     ))}
                   </div>
+
                   <div className="mt-3 p-3 rounded-xl bg-blue-50 border border-blue-100 text-xs space-y-1">
-                    <p className="font-medium text-blue-800">Regime Comparison (no Pluxee)</p>
+                    <p className="font-medium text-blue-800">Regime Comparison (no benefits)</p>
                     <div className="flex justify-between text-blue-700">
-                      <span>Old Regime tax:</span>
-                      <span className="font-medium">{formatINR(regimeComparison.oldResult.withoutBenefits.totalTax)}</span>
+                      <span>Old Regime:</span>
+                      <span className="font-medium">{formatINR(regimeComparison.oldTax)}</span>
                     </div>
                     <div className="flex justify-between text-blue-700">
-                      <span>New Regime tax:</span>
-                      <span className="font-medium">{formatINR(regimeComparison.newResult.withoutBenefits.totalTax)}</span>
+                      <span>New Regime:</span>
+                      <span className="font-medium">{formatINR(regimeComparison.newTax)}</span>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-
-            {/* Old Regime Deductions */}
-            {regime === "old" && (
-              <Card className="shadow-sm border-gray-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Other Deductions (Old Regime)</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <BenefitSlider
-                    label="Section 80C"
-                    sublabel="PF, ELSS, LIC, etc."
-                    value={oldDeductions.section80C}
-                    max={150000}
-                    step={1000}
-                    onChange={(v) => setOldDeduction("section80C", v)}
-                    color="purple"
-                  />
-                  <BenefitSlider
-                    label="Health Insurance (80D)"
-                    sublabel={ageGroup !== "under60" ? "Up to ₹50,000 for seniors" : "Up to ₹25,000"}
-                    value={oldDeductions.healthInsurance80D}
-                    max={ageGroup !== "under60" ? 50000 : 25000}
-                    step={500}
-                    onChange={(v) => setOldDeduction("healthInsurance80D", v)}
-                    color="purple"
-                  />
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* RIGHT PANEL */}
@@ -258,11 +190,11 @@ export function TaxCalculator() {
               </div>
             ) : (
               <div className="rounded-2xl bg-gray-100 border border-gray-200 p-4 text-sm text-gray-600 text-center">
-                Adjust Pluxee benefit sliders below to see your potential tax savings.
+                Adjust the benefit sliders below to see your potential tax savings.
               </div>
             )}
 
-            {/* Results side by side */}
+            {/* Results */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <ResultCard label="Without Pluxee Benefits" result={result.withoutBenefits} />
               <ResultCard label="With Pluxee Benefits" result={result.withBenefits} highlight />
@@ -278,9 +210,20 @@ export function TaxCalculator() {
               </CardHeader>
               <CardContent className="space-y-5">
 
-                {/* --- Both regimes --- */}
-                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Allowed under Old &amp; New Regime</p>
+                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">
+                  Allowed under Old &amp; New Regime
+                </p>
 
+                <BenefitSlider
+                  label="Meal Vouchers"
+                  sublabel="Up to ₹10,000/mo"
+                  value={benefits.mealVouchers}
+                  max={120000}
+                  step={500}
+                  onChange={(v) => setBenefit("mealVouchers", v)}
+                  color="green"
+                />
+                <Separator />
                 <BenefitSlider
                   label="Fuel Reimbursement"
                   sublabel="Up to ₹15,000/mo"
@@ -310,35 +253,14 @@ export function TaxCalculator() {
                   onChange={(v) => setBenefit("healthWellness", v)}
                   color="blue"
                 />
-                <Separator />
-                <BenefitSlider
-                  label="NPS Employer Contribution"
-                  sublabel={`Section 80CCD(2) — up to ${formatINR(npsMax)}/yr (10% of basic)`}
-                  value={Math.min(benefits.npsEmployer, npsMax)}
-                  max={npsMax}
-                  step={1000}
-                  onChange={(v) => setBenefit("npsEmployer", v)}
-                  color="blue"
-                />
 
-                {/* --- Old regime only --- */}
-                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide pt-2">Allowed under Old Regime only</p>
+                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide pt-2">
+                  Allowed under Old Regime only
+                </p>
 
-                <BenefitSlider
-                  label="Meal Vouchers"
-                  sublabel="Tax-exempt up to ₹2,200/mo"
-                  value={benefits.mealVouchers}
-                  max={26400}
-                  step={200}
-                  onChange={(v) => setBenefit("mealVouchers", v)}
-                  disabled={regime === "new"}
-                  disabledReason="Not exempt under New Regime"
-                  color="green"
-                />
-                <Separator />
                 <BenefitSlider
                   label="Transport Allowance"
-                  sublabel="Exempt up to ₹1,600/mo"
+                  sublabel="Up to ₹1,600/mo"
                   value={benefits.transportAllowance}
                   max={19200}
                   step={200}
@@ -355,18 +277,6 @@ export function TaxCalculator() {
                   max={60000}
                   step={500}
                   onChange={(v) => setBenefit("booksAndPeriodicals", v)}
-                  disabled={regime === "new"}
-                  disabledReason="Not exempt under New Regime"
-                  color="green"
-                />
-                <Separator />
-                <BenefitSlider
-                  label="Leave Travel Allowance (LTA)"
-                  sublabel="Claimed twice in 4-year block"
-                  value={benefits.lta}
-                  max={Math.round(grossSalary * 0.08)}
-                  step={1000}
-                  onChange={(v) => setBenefit("lta", v)}
                   disabled={regime === "new"}
                   disabledReason="Not exempt under New Regime"
                   color="green"

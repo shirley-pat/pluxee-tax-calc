@@ -16,7 +16,7 @@ import {
   OldRegimeDeductions,
 } from "@/lib/taxEngine";
 
-const BASIC_RATIO = 0.5; // assume basic = 50% of gross for NPS cap calc
+const BASIC_RATIO = 0.5;
 
 export function TaxCalculator() {
   const [grossSalary, setGrossSalary] = useState(1200000);
@@ -28,7 +28,10 @@ export function TaxCalculator() {
     mealVouchers: 26400,
     transportAllowance: 19200,
     lta: 0,
-    phoneInternet: 12000,
+    telecom: 60000,
+    fuel: 0,
+    booksAndPeriodicals: 0,
+    healthWellness: 0,
     npsEmployer: 0,
   });
 
@@ -54,22 +57,14 @@ export function TaxCalculator() {
     [grossSalary, ageGroup, regime, benefits, oldDeductions, npsMax]
   );
 
-  // Old vs New comparison (ignoring Pluxee — pure regime comparison)
   const regimeComparison = useMemo(() => {
-    const oldResult = calculateTax({
-      grossSalary,
-      ageGroup,
-      regime: "old",
-      benefits: { mealVouchers: 0, transportAllowance: 0, lta: 0, phoneInternet: 0, npsEmployer: 0 },
-      oldRegimeDeductions: oldDeductions,
-    });
-    const newResult = calculateTax({
-      grossSalary,
-      ageGroup,
-      regime: "new",
-      benefits: { mealVouchers: 0, transportAllowance: 0, lta: 0, phoneInternet: 0, npsEmployer: 0 },
-      oldRegimeDeductions: oldDeductions,
-    });
+    const empty: PluxeeBenefits = {
+      mealVouchers: 0, transportAllowance: 0, lta: 0,
+      telecom: 0, fuel: 0, booksAndPeriodicals: 0,
+      healthWellness: 0, npsEmployer: 0,
+    };
+    const oldResult = calculateTax({ grossSalary, ageGroup, regime: "old", benefits: empty, oldRegimeDeductions: oldDeductions });
+    const newResult = calculateTax({ grossSalary, ageGroup, regime: "new", benefits: empty, oldRegimeDeductions: oldDeductions });
     return { oldResult, newResult };
   }, [grossSalary, ageGroup, oldDeductions]);
 
@@ -83,10 +78,7 @@ export function TaxCalculator() {
     const val = parseINR(salaryInput);
     const clamped = Math.max(0, Math.min(val, 100000000));
     setGrossSalary(clamped);
-    // Format with Indian grouping
-    setSalaryInput(
-      clamped === 0 ? "" : clamped.toLocaleString("en-IN")
-    );
+    setSalaryInput(clamped === 0 ? "" : clamped.toLocaleString("en-IN"));
   }, [salaryInput]);
 
   const setBenefit = (key: keyof PluxeeBenefits, value: number) => {
@@ -96,9 +88,6 @@ export function TaxCalculator() {
   const setOldDeduction = (key: keyof OldRegimeDeductions, value: number) => {
     setOldDeductions((prev) => ({ ...prev, [key]: value }));
   };
-
-  const annualSaving = result.annualSaving;
-  const monthlySaving = result.monthlySaving;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -121,10 +110,9 @@ export function TaxCalculator() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* LEFT PANEL — Inputs */}
+          {/* LEFT PANEL */}
           <div className="lg:col-span-1 space-y-5">
 
-            {/* Salary & Profile */}
             <Card className="shadow-sm border-gray-200">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Your Profile</CardTitle>
@@ -148,24 +136,18 @@ export function TaxCalculator() {
                       placeholder="12,00,000"
                     />
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    = {formatINR(grossSalary, true)}
-                  </p>
+                  <p className="text-xs text-gray-400 mt-1">= {formatINR(grossSalary, true)}</p>
                 </div>
 
                 {/* Age Group */}
                 <div>
-                  <label className="text-sm font-medium text-gray-700 block mb-2">
-                    Age Group
-                  </label>
+                  <label className="text-sm font-medium text-gray-700 block mb-2">Age Group</label>
                   <div className="grid grid-cols-3 gap-1.5">
-                    {(
-                      [
-                        { key: "under60", label: "Under 60" },
-                        { key: "60to79", label: "60–79" },
-                        { key: "80plus", label: "80+" },
-                      ] as const
-                    ).map(({ key, label }) => (
+                    {([
+                      { key: "under60", label: "Under 60" },
+                      { key: "60to79",  label: "60–79" },
+                      { key: "80plus",  label: "80+" },
+                    ] as const).map(({ key, label }) => (
                       <button
                         key={key}
                         onClick={() => setAgeGroup(key)}
@@ -185,24 +167,19 @@ export function TaxCalculator() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-medium text-gray-700">Tax Regime</label>
-                    {recommendedRegime !== regime && (
+                    {recommendedRegime === regime ? (
+                      <Badge className="text-xs bg-emerald-100 text-emerald-700 border-0 font-medium">Optimal</Badge>
+                    ) : (
                       <span className="text-xs text-amber-600 font-medium">
                         {recommendedRegime === "new" ? "New" : "Old"} may save more
                       </span>
                     )}
-                    {recommendedRegime === regime && (
-                      <Badge className="text-xs bg-emerald-100 text-emerald-700 border-0 font-medium">
-                        Optimal
-                      </Badge>
-                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {(
-                      [
-                        { key: "new", label: "New Regime" },
-                        { key: "old", label: "Old Regime" },
-                      ] as const
-                    ).map(({ key, label }) => (
+                    {([
+                      { key: "new", label: "New Regime" },
+                      { key: "old", label: "Old Regime" },
+                    ] as const).map(({ key, label }) => (
                       <button
                         key={key}
                         onClick={() => setRegime(key)}
@@ -213,27 +190,19 @@ export function TaxCalculator() {
                         }`}
                       >
                         {label}
-                        {recommendedRegime === key && (
-                          <span className="ml-1 opacity-75">★</span>
-                        )}
+                        {recommendedRegime === key && <span className="ml-1 opacity-75">★</span>}
                       </button>
                     ))}
                   </div>
-
-                  {/* Regime comparison chip */}
                   <div className="mt-3 p-3 rounded-xl bg-blue-50 border border-blue-100 text-xs space-y-1">
                     <p className="font-medium text-blue-800">Regime Comparison (no Pluxee)</p>
                     <div className="flex justify-between text-blue-700">
                       <span>Old Regime tax:</span>
-                      <span className="font-medium">
-                        {formatINR(regimeComparison.oldResult.withoutBenefits.totalTax)}
-                      </span>
+                      <span className="font-medium">{formatINR(regimeComparison.oldResult.withoutBenefits.totalTax)}</span>
                     </div>
                     <div className="flex justify-between text-blue-700">
                       <span>New Regime tax:</span>
-                      <span className="font-medium">
-                        {formatINR(regimeComparison.newResult.withoutBenefits.totalTax)}
-                      </span>
+                      <span className="font-medium">{formatINR(regimeComparison.newResult.withoutBenefits.totalTax)}</span>
                     </div>
                   </div>
                 </div>
@@ -244,7 +213,7 @@ export function TaxCalculator() {
             {regime === "old" && (
               <Card className="shadow-sm border-gray-200">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Old Regime Deductions</CardTitle>
+                  <CardTitle className="text-base">Other Deductions (Old Regime)</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <BenefitSlider
@@ -270,26 +239,24 @@ export function TaxCalculator() {
             )}
           </div>
 
-          {/* RIGHT PANEL — Results + Breakdown */}
+          {/* RIGHT PANEL */}
           <div className="lg:col-span-2 space-y-5">
 
             {/* Saving banner */}
-            {annualSaving > 0 && (
+            {result.annualSaving > 0 ? (
               <div className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 p-5 text-white shadow-lg">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
                     <p className="text-sm font-medium opacity-90">Annual Tax Saving with Pluxee</p>
-                    <p className="text-4xl font-bold mt-0.5">{formatINR(annualSaving)}</p>
+                    <p className="text-4xl font-bold mt-0.5">{formatINR(result.annualSaving)}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm opacity-75">Monthly saving</p>
-                    <p className="text-2xl font-bold">{formatINR(monthlySaving)}</p>
+                    <p className="text-2xl font-bold">{formatINR(result.monthlySaving)}</p>
                   </div>
                 </div>
               </div>
-            )}
-
-            {annualSaving === 0 && (
+            ) : (
               <div className="rounded-2xl bg-gray-100 border border-gray-200 p-4 text-sm text-gray-600 text-center">
                 Adjust Pluxee benefit sliders below to see your potential tax savings.
               </div>
@@ -297,15 +264,8 @@ export function TaxCalculator() {
 
             {/* Results side by side */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <ResultCard
-                label="Without Pluxee Benefits"
-                result={result.withoutBenefits}
-              />
-              <ResultCard
-                label="With Pluxee Benefits"
-                result={result.withBenefits}
-                highlight
-              />
+              <ResultCard label="Without Pluxee Benefits" result={result.withoutBenefits} />
+              <ResultCard label="With Pluxee Benefits" result={result.withBenefits} highlight />
             </div>
 
             {/* Pluxee Benefits Sliders */}
@@ -317,6 +277,53 @@ export function TaxCalculator() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-5">
+
+                {/* --- Both regimes --- */}
+                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Allowed under Old &amp; New Regime</p>
+
+                <BenefitSlider
+                  label="Fuel Reimbursement"
+                  sublabel="Up to ₹15,000/mo"
+                  value={benefits.fuel}
+                  max={180000}
+                  step={1000}
+                  onChange={(v) => setBenefit("fuel", v)}
+                  color="blue"
+                />
+                <Separator />
+                <BenefitSlider
+                  label="Telecommunication &amp; Data"
+                  sublabel="Up to ₹5,000/mo"
+                  value={benefits.telecom}
+                  max={60000}
+                  step={500}
+                  onChange={(v) => setBenefit("telecom", v)}
+                  color="blue"
+                />
+                <Separator />
+                <BenefitSlider
+                  label="Health &amp; Wellness"
+                  sublabel="Up to ₹5,000/mo"
+                  value={benefits.healthWellness}
+                  max={60000}
+                  step={500}
+                  onChange={(v) => setBenefit("healthWellness", v)}
+                  color="blue"
+                />
+                <Separator />
+                <BenefitSlider
+                  label="NPS Employer Contribution"
+                  sublabel={`Section 80CCD(2) — up to ${formatINR(npsMax)}/yr (10% of basic)`}
+                  value={Math.min(benefits.npsEmployer, npsMax)}
+                  max={npsMax}
+                  step={1000}
+                  onChange={(v) => setBenefit("npsEmployer", v)}
+                  color="blue"
+                />
+
+                {/* --- Old regime only --- */}
+                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide pt-2">Allowed under Old Regime only</p>
+
                 <BenefitSlider
                   label="Meal Vouchers"
                   sublabel="Tax-exempt up to ₹2,200/mo"
@@ -342,6 +349,18 @@ export function TaxCalculator() {
                 />
                 <Separator />
                 <BenefitSlider
+                  label="Books &amp; Periodicals"
+                  sublabel="Up to ₹5,000/mo"
+                  value={benefits.booksAndPeriodicals}
+                  max={60000}
+                  step={500}
+                  onChange={(v) => setBenefit("booksAndPeriodicals", v)}
+                  disabled={regime === "new"}
+                  disabledReason="Not exempt under New Regime"
+                  color="green"
+                />
+                <Separator />
+                <BenefitSlider
                   label="Leave Travel Allowance (LTA)"
                   sublabel="Claimed twice in 4-year block"
                   value={benefits.lta}
@@ -351,26 +370,6 @@ export function TaxCalculator() {
                   disabled={regime === "new"}
                   disabledReason="Not exempt under New Regime"
                   color="green"
-                />
-                <Separator />
-                <BenefitSlider
-                  label="Phone & Internet Reimbursement"
-                  sublabel="Up to ₹12,000/yr — allowed both regimes"
-                  value={benefits.phoneInternet}
-                  max={12000}
-                  step={500}
-                  onChange={(v) => setBenefit("phoneInternet", v)}
-                  color="blue"
-                />
-                <Separator />
-                <BenefitSlider
-                  label="NPS Employer Contribution"
-                  sublabel={`Section 80CCD(2) — up to ${formatINR(npsMax)}/yr (10% of basic)`}
-                  value={Math.min(benefits.npsEmployer, npsMax)}
-                  max={npsMax}
-                  step={1000}
-                  onChange={(v) => setBenefit("npsEmployer", v)}
-                  color="blue"
                 />
               </CardContent>
             </Card>
@@ -390,7 +389,6 @@ export function TaxCalculator() {
               </CardContent>
             </Card>
 
-            {/* Footer note */}
             <p className="text-xs text-gray-400 text-center pb-4">
               Estimates only. Consult a tax professional for personalised advice. FY 2024–25 slabs.
             </p>

@@ -70,20 +70,29 @@ export function TaxBreakdown({ breakdown, withoutResult, withResult, regime }: T
         <div>
           <Row label="Gross Salary" value={breakdown.grossSalary} type="neutral" />
           <Row label="Standard Deduction" value={breakdown.standardDeduction} type="deduction" />
+          {breakdown.fuel > 0 && (
+            <Row label="Fuel Reimbursement" value={breakdown.fuel} type="deduction" />
+          )}
+          {breakdown.telecom > 0 && (
+            <Row label="Telecommunication & Data" value={breakdown.telecom} type="deduction" />
+          )}
+          {breakdown.healthWellness > 0 && (
+            <Row label="Health & Wellness" value={breakdown.healthWellness} type="deduction" />
+          )}
+          {breakdown.npsEmployer > 0 && (
+            <Row label="NPS Employer (80CCD2)" value={breakdown.npsEmployer} type="deduction" />
+          )}
           {breakdown.mealVouchers > 0 && (
-            <Row label="Meal Vouchers (exempt)" value={breakdown.mealVouchers} type="deduction" />
+            <Row label="Meal Vouchers" value={breakdown.mealVouchers} type="deduction" />
           )}
           {breakdown.transportAllowance > 0 && (
             <Row label="Transport Allowance" value={breakdown.transportAllowance} type="deduction" />
           )}
+          {breakdown.booksAndPeriodicals > 0 && (
+            <Row label="Books & Periodicals" value={breakdown.booksAndPeriodicals} type="deduction" />
+          )}
           {breakdown.lta > 0 && (
             <Row label="LTA Exemption" value={breakdown.lta} type="deduction" />
-          )}
-          {breakdown.phoneInternet > 0 && (
-            <Row label="Phone & Internet" value={breakdown.phoneInternet} type="deduction" />
-          )}
-          {breakdown.npsEmployer > 0 && (
-            <Row label="NPS Employer (80CCD2)" value={breakdown.npsEmployer} type="deduction" />
           )}
           {breakdown.section80C > 0 && (
             <Row label="Section 80C" value={breakdown.section80C} type="deduction" />
@@ -98,7 +107,7 @@ export function TaxBreakdown({ breakdown, withoutResult, withResult, regime }: T
 
         {regime === "new" && (
           <p className="text-xs text-amber-600 mt-3 p-2 bg-amber-50 rounded-lg">
-            New Regime: Meal vouchers, transport allowance, and LTA are taxable. Only NPS employer contribution (80CCD2) and phone/internet reimbursement remain exempt.
+            New Regime: Meal vouchers, transport allowance, LTA, and books &amp; periodicals are not exempt. Fuel, telecom &amp; data, health &amp; wellness, and NPS employer contribution remain exempt.
           </p>
         )}
       </div>
